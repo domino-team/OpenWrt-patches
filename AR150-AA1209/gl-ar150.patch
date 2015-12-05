@@ -1,0 +1,258 @@
+--- /dev/null
++++ b/target/linux/ar71xx/files/arch/mips/ath79/mach-gl_ar150.c
+@@ -0,0 +1,122 @@
++/*
++ *  GL_ar150 board support
++ *
++ *  Copyright (C) 2011 dongyuqi <729650915@qq.com>
++ *  Copyright (C) 2011-2012 Gabor Juhos <juhosg@openwrt.org>
++ *  Copyright (C) 2013 alzhao <alzhao@gmail.com>
++ *  Copyright (C) 2014 Michel Stempin <michel.stempin@wanadoo.fr>
++ *
++ *  This program is free software; you can redistribute it and/or modify it
++ *  under the terms of the GNU General Public License version 2 as published
++ *  by the Free Software Foundation.
++*/
++
++#include <linux/gpio.h>
++
++#include <asm/mach-ath79/ath79.h>
++
++#include "dev-eth.h"
++#include "dev-gpio-buttons.h"
++#include "dev-leds-gpio.h"
++#include "dev-m25p80.h"
++#include "dev-usb.h"
++#include "dev-wmac.h"
++#include "machtypes.h"
++
++#define GL_AR150_GPIO_LED_WLAN		   0
++#define GL_AR150_GPIO_LED_LAN		   13
++#define GL_AR150_GPIO_LED_WAN		   15 
++
++#define GL_AR150_GPIO_BIN_USB         6
++#define GL_AR150_GPIO_BTN_MANUAL      7
++#define GL_AR150_GPIO_BTN_AUTO	   	   8
++#define GL_AR150_GPIO_BTN_RESET	   11
++
++#define GL_AR150_KEYS_POLL_INTERVAL   20	/* msecs */
++#define GL_AR150_KEYS_DEBOUNCE_INTERVAL	(3 * GL_AR150_KEYS_POLL_INTERVAL)
++
++#define GL_AR150_MAC0_OFFSET	0x0000
++#define GL_AR150_MAC1_OFFSET	0x0000
++#define GL_AR150_CALDATA_OFFSET	0x1000
++#define GL_AR150_WMAC_MAC_OFFSET	0x0000
++
++static struct gpio_led gl_ar150_leds_gpio[] __initdata = {
++	{
++		.name = "gl_ar150:wlan",
++		.gpio = GL_AR150_GPIO_LED_WLAN,
++		.active_low = 0,
++	},
++	{
++		.name = "gl_ar150:lan",
++		.gpio = GL_AR150_GPIO_LED_LAN,
++		.active_low = 0,
++	},
++	{
++		.name = "gl_ar150:wan",
++		.gpio = GL_AR150_GPIO_LED_WAN,
++		.active_low = 0,
++ 		.default_state = 1,
++	},
++};
++
++static struct gpio_keys_button gl_ar150_gpio_keys[] __initdata = {
++	{
++		.desc = "BTN_7",
++		.type = EV_KEY,
++		.code = BTN_7,
++		.debounce_interval = GL_AR150_KEYS_DEBOUNCE_INTERVAL,
++		.gpio = GL_AR150_GPIO_BTN_MANUAL,
++		.active_low = 0,
++	},
++	{
++		.desc = "BTN_8",
++		.type = EV_KEY,
++		.code = BTN_8,
++		.debounce_interval = GL_AR150_KEYS_DEBOUNCE_INTERVAL,
++		.gpio = GL_AR150_GPIO_BTN_AUTO,
++		.active_low = 0,
++	},
++	{
++		.desc = "reset",
++		.type = EV_KEY,
++		.code = KEY_RESTART,
++		.debounce_interval = GL_AR150_KEYS_DEBOUNCE_INTERVAL,
++		.gpio = GL_AR150_GPIO_BTN_RESET,
++		.active_low = 0,
++	},
++};
++
++static void __init gl_ar150_setup(void)
++{
++
++	/* ART base address */
++	u8 *art = (u8 *) KSEG1ADDR(0x1fff0000);
++
++	/* disable PHY_SWAP and PHY_ADDR_SWAP bits */
++	ath79_setup_ar933x_phy4_switch(false, false);
++
++	/* register flash. */
++	ath79_register_m25p80(NULL);
++
++	/* register gpio LEDs and keys */
++	ath79_register_leds_gpio(-1, ARRAY_SIZE(gl_ar150_leds_gpio),
++				 gl_ar150_leds_gpio);
++	ath79_register_gpio_keys_polled(-1, GL_AR150_KEYS_POLL_INTERVAL,
++					ARRAY_SIZE(gl_ar150_gpio_keys),
++					gl_ar150_gpio_keys);
++
++	/* enable usb */
++	ath79_register_usb();
++
++	/* register eth0 as WAN, eth1 as LAN */
++	ath79_init_mac(ath79_eth0_data.mac_addr, art+GL_AR150_MAC0_OFFSET, 0);
++	ath79_init_mac(ath79_eth1_data.mac_addr, art+GL_AR150_MAC1_OFFSET, 0);
++	ath79_register_mdio(0, 0x0);
++	ath79_register_eth(0);
++	ath79_register_eth(1);
++
++	/* register wireless mac with cal data */
++	ath79_register_wmac(art + GL_AR150_CALDATA_OFFSET, art + GL_AR150_WMAC_MAC_OFFSET);
++}
++
++MIPS_MACHINE(ATH79_MACH_GL_AR150, "GL-AR150", "GL-AR150",gl_ar150_setup);
+--- /dev/null
++++ b/target/linux/ar71xx/generic/profiles/gl-ar150.mk
+@@ -0,0 +1,16 @@
++#
++# Copyright (C) 2013 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++define Profile/GL_AR150
++	NAME:=GL-AR150
++	PACKAGES:=kmod-usb-core kmod-usb2
++endef
++
++define Profile/GL_AR150/Description
++	Configuration of GL-AR150, Wifi for everything.
++endef
++
++$(eval $(call Profile,GL_AR150))
+--- a/target/linux/ar71xx/base-files/lib/ar71xx.sh
++++ b/target/linux/ar71xx/base-files/lib/ar71xx.sh
+@@ -174,6 +174,9 @@ ar71xx_board_detect() {
+ 	*AP121-MINI)
+ 		name="ap121-mini"
+ 		;;
++	*GL-AR150)
++		name="gl-ar150"
++		;;
+ 	*"AP136 reference board")
+ 		name="ap136"
+ 		;;
+--- a/target/linux/ar71xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/ar71xx/base-files/lib/upgrade/platform.sh
+@@ -87,6 +87,7 @@ platform_check_image() {
+ 	alfa-nx | \
+ 	ap113 | \
+ 	ap121 | \
++	gl-ar150 | \
+ 	ap121-mini | \
+ 	ap136 | \
+ 	ap96 | \
+--- a/target/linux/ar71xx/image/Makefile
++++ b/target/linux/ar71xx/image/Makefile
+@@ -165,6 +165,7 @@ ap96_mtdlayout=mtdparts=spi0.0:192k(u-bo
+ ap113_mtd_layout=mtdparts=spi0.0:64k(u-boot),3008k(rootfs),896k(uImage),64k(NVRAM),64k(ART),3904k@0x10000(firmware)
+ ap121_mtdlayout_2M=mtdparts=spi0.0:64k(u-boot)ro,1216k(rootfs),704k(kernel),64k(art)ro,1920k@0x10000(firmware)
+ ap121_mtdlayout_4M=mtdparts=spi0.0:256k(u-boot)ro,64k(u-boot-env)ro,2752k(rootfs),896k(kernel),64k(nvram),64k(art)ro,3648k@0x50000(firmware)
++gl_ar150_16M=mtdparts=spi0.0:256k(u-boot)ro,64k(u-boot-env),1280k(kernel),14656k(rootfs),64k(nvram),64k(art)ro,16000k@0x50000(firmware)
+ ap136_mtdlayout=mtdparts=spi0.0:256k(u-boot)ro,64k(u-boot-env)ro,6336k(rootfs),1408k(kernel),64k(mib0),64k(art)ro,7744k@0x50000(firmware)
+ cameo7240_mtdlayout=mtdparts=spi0.0:192k(u-boot)ro,64k(nvram)ro,960k(kernel),2752k(rootfs),64k(mac)ro,64k(art)ro,3712k@0x40000(firmware)
+ cameo913x_mtdlayout=mtdparts=spi0.0:128k(u-boot)ro,64k(config)ro,960k(kernel),2880k(rootfs),64k(art)ro,3840k@0x30000(firmware)
+@@ -794,6 +795,7 @@ $(eval $(call SingleProfile,AthLzma,$(fs
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),AP113,ap113,AP113,ttyS0,115200,$$(ap113_mtd_layout),917504,3080192,RK))
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),AP121_2M,ap121-2M,AP121,ttyATH0,115200,$$(ap121_mtdlayout_2M),720896,1245184,RKuImage))
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),AP121_4M,ap121-4M,AP121,ttyATH0,115200,$$(ap121_mtdlayout_4M),917504,2818048,RKuImage))
++$(eval $(call SingleProfile,AthLzma,$(fs_64k),GL_AR150,gl-ar150,GL-AR150,ttyATH0,115200,$$(gl_ar150_16M),1310720,15007744,KRuImage))
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),AP121MINI,ap121-mini,AP121-MINI,ttyATH0,115200,$$(ap121_mtdlayout_4M),917504,2818048,RKuImage))
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),AP136,ap136,AP136,ttyS0,115200,$$(ap136_mtdlayout),1441792,6488064,RKuImage))
+ $(eval $(call SingleProfile,AthLzma,$(fs_64k),CAP4200AG,cap4200ag,CAP4200AG,ttyS0,115200,$$(cap4200ag_mtdlayout),1572864,12386304,KRuImage))
+--- a/target/linux/ar71xx/base-files/etc/uci-defaults/network
++++ b/target/linux/ar71xx/base-files/etc/uci-defaults/network
+@@ -170,6 +170,7 @@ jwap003 |\
+ pb42 |\
+ pb44 |\
+ routerstation|\
++gl-ar150 |\
+ wpe72)
+ 	ucidef_set_interfaces_lan_wan "eth1" "eth0"
+ 	;;
+--- a/target/linux/ar71xx/config-3.3
++++ b/target/linux/ar71xx/config-3.3
+@@ -25,6 +25,7 @@ CONFIG_ATH79_MACH_ALL0258N=y
+ CONFIG_ATH79_MACH_ALL0315N=y
+ CONFIG_ATH79_MACH_AP113=y
+ CONFIG_ATH79_MACH_AP121=y
++CONFIG_ATH79_MACH_GL_AR150=y
+ CONFIG_ATH79_MACH_AP136=y
+ CONFIG_ATH79_MACH_AP81=y
+ CONFIG_ATH79_MACH_AP83=y
+--- a/target/linux/ar71xx/base-files/etc/uci-defaults/leds
++++ b/target/linux/ar71xx/base-files/etc/uci-defaults/leds
+@@ -64,6 +64,9 @@ dir-825-b1)
+ 	ucidef_set_led_usbdev "usb" "USB" "d-link:blue:usb" "1-1"
+ 	;;
+ 
++gl-ar150)
++	ucidef_set_led_wlan "wlan" "WLAN" "gl_ar150:wlan" "phy0tpt"
++
+ hornet-ub)
+ 	ucidef_set_led_netdev "lan" "LAN" "alfa:blue:lan" "eth0"
+ 	ucidef_set_led_netdev "wan" "WAN" "alfa:blue:wan" "eth1"
+--- /dev/null
++++ b/target/linux/ar71xx/patches-3.3/911-mips-ath79-ar150.patch
+@@ -0,0 +1,39 @@
++--- a/arch/mips/ath79/Kconfig
+++++ b/arch/mips/ath79/Kconfig
++@@ -70,6 +70,16 @@ config ATH79_MACH_AP121
++ 	  Say 'Y' here if you want your kernel to support the
++ 	  Atheros AP121 reference board.
++ 
+++config ATH79_MACH_GL_AR150
+++	bool "GL_AR150 support"
+++	select SOC_AR933X
+++	select ATH79_DEV_ETH
+++	select ATH79_DEV_GPIO_BUTTONS
+++	select ATH79_DEV_LEDS_GPIO
+++	select ATH79_DEV_M25P80
+++	select ATH79_DEV_USB
+++	select ATH79_DEV_WMAC
+++
++ config ATH79_MACH_AP136
++ 	bool "Atheros AP136 reference board"
++ 	select SOC_QCA955X
++--- a/arch/mips/ath79/Makefile
+++++ b/arch/mips/ath79/Makefile
++@@ -56,6 +56,7 @@ obj-$(CONFIG_ATH79_MACH_DIR_615_C1)	+= m
++ obj-$(CONFIG_ATH79_MACH_DIR_825_B1)	+= mach-dir-825-b1.o
++ obj-$(CONFIG_ATH79_MACH_EW_DORIN)	+= mach-ew-dorin.o
++ obj-$(CONFIG_ATH79_MACH_EAP7660D)	+= mach-eap7660d.o
+++obj-$(CONFIG_ATH79_MACH_GL_AR150)	+= mach-gl_ar150.o
++ obj-$(CONFIG_ATH79_MACH_JA76PF)		+= mach-ja76pf.o
++ obj-$(CONFIG_ATH79_MACH_JWAP003)	+= mach-jwap003.o
++ obj-$(CONFIG_ATH79_MACH_HORNET_UB)	+= mach-hornet-ub.o
++--- a/arch/mips/ath79/machtypes.h
+++++ b/arch/mips/ath79/machtypes.h
++@@ -39,6 +39,7 @@ enum ath79_mach_type {
++ 	ATH79_MACH_EW_DORIN,		/* embedded wireless Dorin Platform */
++ 	ATH79_MACH_EW_DORIN_ROUTER,	/* embedded wireless Dorin Router Platform */
++ 	ATH79_MACH_EAP7660D,		/* Senao EAP7660D */
+++	ATH79_MACH_GL_AR150,        /* GL_ar150 */
++ 	ATH79_MACH_JA76PF,		/* jjPlus JA76PF */
++ 	ATH79_MACH_JA76PF2,		/* jjPlus JA76PF2 */
++ 	ATH79_MACH_JWAP003,		/* jjPlus JWAP003 */
