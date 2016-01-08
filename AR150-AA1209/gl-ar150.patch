@@ -204,12 +204,13 @@
  CONFIG_ATH79_MACH_AP83=y
 --- a/target/linux/ar71xx/base-files/etc/uci-defaults/leds
 +++ b/target/linux/ar71xx/base-files/etc/uci-defaults/leds
-@@ -64,6 +64,9 @@ dir-825-b1)
+@@ -64,6 +64,10 @@ dir-825-b1)
  	ucidef_set_led_usbdev "usb" "USB" "d-link:blue:usb" "1-1"
  	;;
  
 +gl-ar150)
 +	ucidef_set_led_wlan "wlan" "WLAN" "gl_ar150:wlan" "phy0tpt"
++	;;
 +
  hornet-ub)
  	ucidef_set_led_netdev "lan" "LAN" "alfa:blue:lan" "eth0"
