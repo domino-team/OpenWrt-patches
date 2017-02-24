@@ -1,3 +1,6 @@
+
+**Attention: these patches for cc15.05 is not updated. For cc1505, use http://github.com/domino-team/openwrt-cc directly**
+
 # OpenWrt-patches
 
 ###Download source
